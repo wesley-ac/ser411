@@ -62,34 +62,37 @@ sensor = ('TERRA_M-M', 'TERRA_M-T', 'AQUA_M-T', 'AQUA_M-M')
 #mudar tipo da coluna data para data
 #sql = 'ALTER TABLE teste ALTER COLUMN timestamp TYPE TIMESTAMP'
 #a = shp_focos.ExecuteSQL(sql)
+#field_name = ogr.FieldDefn("data", ogr.OFTDateTime)
+#layer_focos.CreateField(field_name)
 
-
+meses = ('01','02','03','04','05','06','07','08','09','10','11','12')
 
 #Filtro de Atributos
 for s in sensor:
-    layer_focos = shp_focos.GetLayer()
-    layer_focos.SetAttributeFilter("satelite = '{0}'".format(s))
-    # Fazendo a interação com cada foco para determinar onde ele se encontra na grade, armazenando na matriz
+    layer_focos_fil = layer_focos
+    layer_focos_fil.SetAttributeFilter("satelite = '{0}'".format(s))
     
-    matriz = np.zeros((grid_dimension['rows'],grid_dimension['cols']),np.uint16)
-    
-    
-    for foco in layer_focos:
-        location = foco.GetGeometryRef()
-        col, row = Geo2Grid(location, grid_dimension, spatial_resolution, spatial_extent)
-    
-        matriz[row, col] += 1
-    
-    output_file_name = "./output/{0}.tif".format(s)
-    raster = driver.Create(output_file_name,grid_dimension['cols'],grid_dimension['rows'],1,gdal.GDT_UInt16)
-    raster.SetGeoTransform((spatial_extent['xmin'],spatial_resolution['x'],0,spatial_extent['ymax'],0,-spatial_resolution['y']))
-    srs_focos = layer_focos.GetSpatialRef()
-    raster.SetProjection(srs_focos.ExportToWkt())
-    band = raster.GetRasterBand(1)
-    band.WriteArray(matriz,0,0)
-    band.FlushCache()
-    raster = None
-    print(output_file_name)
+    for d in meses:
+        matriz = np.zeros((grid_dimension['rows'],grid_dimension['cols']),np.uint16)
+        for foco in layer_focos_fil:
+            data = foco.GetFieldAsString(7)[5:7]
+            if data == d:
+                location = foco.GetGeometryRef()
+                col, row = Geo2Grid(location, grid_dimension, spatial_resolution, spatial_extent)
+                matriz[row, col] += 1
+            else:
+                continue
+            
+        output_file_name = "./output/{0}_{1}.tif".format(s,d)
+        raster = driver.Create(output_file_name,grid_dimension['cols'],grid_dimension['rows'],1,gdal.GDT_UInt16)
+        raster.SetGeoTransform((spatial_extent['xmin'],spatial_resolution['x'],0,spatial_extent['ymax'],0,-spatial_resolution['y']))
+        srs_focos = layer_focos.GetSpatialRef()
+        raster.SetProjection(srs_focos.ExportToWkt())
+        band = raster.GetRasterBand(1)
+        band.WriteArray(matriz,0,0)
+        band.FlushCache()
+        raster = None
+        print(output_file_name)
 
 
 
